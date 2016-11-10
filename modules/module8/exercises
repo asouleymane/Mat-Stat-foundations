@@ -1,0 +1,1115 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Module 8 - Variance Across Groups Exercises\n",
+    "\n",
+    "There are many ways of doing feature reduction/extraction. We have seen how correlation between two variables can be used to exclude the features from a model. Highly correlated variables contribute less in explaining the variation in data because they vary in similar fashion; they more or less behave like same features. We have seen whether two features are independent or not using chi square test to see if the data in one feature is affecting how the data will be in other feature. We have seen how PCA tried to compress the data so that maximum variation in data is explained using minimal number of dimensions.\n",
+    "\n",
+    "This module tried to explain the variation of data within a feature and between features by analyzing variance. This techniques will help you analyze variables at individual scale how different they are in different groups. Random forests helped determine the importance of variables for fitting the model.\n",
+    "\n",
+    "Use the techniques of module 8 and previous labs to predict the forest cover type. Some of the exercises are partially complete. You have to complete the code or modify the code in order to get the desired output. Some of the exercises may be challenging as they might not be discussed in the lab or practice notebooks. Sufficient guidance and hints are provided for you to look up for the functions or the description is provided on how to solve the problem. Use this guidance for answering the questions. \n",
+    "\n",
+    "\n",
+    "The study area includes four wilderness areas located in the Roosevelt National Forest of northern Colorado. Each observation is a 30m x 30m patch. You are asked to predict an integer classification for the forest cover type. The seven types are:\n",
+    "\n",
+    "\n",
+    "### Forest cover types\n",
+    "\n",
+    "* Spruce/Fir\n",
+    "* Lodgepole Pine\n",
+    "* Ponderosa Pine\n",
+    "* Cottonwood/Willow\n",
+    "* Aspen\n",
+    "* Douglas-fir\n",
+    "* Krummholz\n",
+    "\n",
+    "### Data Fields\n",
+    "\n",
+    "* Elevation - Elevation in meters\n",
+    "* Aspect - Aspect in degrees azimuth\n",
+    "* lope - Slope in degrees\n",
+    "* Horizontal_Distance_To_Hydrology - Horz Dist to nearest surface water features\n",
+    "* Vertical_Distance_To_Hydrology - Vert Dist to nearest surface water features\n",
+    "* Horizontal_Distance_To_Roadways - Horz Dist to nearest roadway\n",
+    "* Hillshade_9am (0 to 255 index) - Hillshade index at 9am, summer solstice\n",
+    "* Hillshade_Noon (0 to 255 index) - Hillshade index at noon, summer solstice\n",
+    "* Hillshade_3pm (0 to 255 index) - Hillshade index at 3pm, summer solstice\n",
+    "* Horizontal_Distance_To_Fire_Points - Horz Dist to nearest wildfire ignition points\n",
+    "* Wilderness_Area (4 binary columns, 0 = absence or 1 = presence) - Wilderness area designation\n",
+    "* Soil_Type (40 binary columns, 0 = absence or 1 = presence) - Soil Type designation\n",
+    "* Cover_Type (7 types, integers 1 to 7) - Forest Cover Type designation\n",
+    "\n",
+    "### The wilderness areas are:\n",
+    "\n",
+    "* Rawah Wilderness Area\n",
+    "* Neota Wilderness Area\n",
+    "* Comanche Peak Wilderness Area\n",
+    "* Cache la Poudre Wilderness Area\n",
+    "\n",
+    "From [kaggle.com](https://www.kaggle.com/c/forest-cover-type-prediction/data)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Load the dataset from ~/datasets/Forest/"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "forest_cover = read.csv(\"../../../datasets/Forest/forest_cover.csv\")\n",
+    "head(forest_cover)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "str(forest_cover)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The Cover_Type variables has 7 different classes of vegetation. Encode the coverType variable to replace the old values (1,2,3,4,5,6,7) with corresponding labels \n",
+    "\n",
+    "\n",
+    "* 1.SpruceFir\n",
+    "* 2.LodgepolePine\n",
+    "* 3.PonderosaPine\n",
+    "* 4.Cottonwood-Willow\n",
+    "* 5.Aspen\n",
+    "* 6.Douglas-fir\n",
+    "* 7.Krummholz\n",
+    "\n",
+    "Also the columns Wilderness_Area1 through Wilderness_Area4 are mutually exclusive. They contain binary values, 1 if the row belongs to certain wilderness type or 0 otherwise. Like wise the variables soil_Type1 through soil_Type40 are mutually exclusive containing binary values. The column will have a 1 if soil_Type of certain type or 0 otherwise.  "
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 1:  ** Encode the Cover_Type variable to replace the old values (1,2,3,4,5,6,7) with corresponding labels using mapvalues() function in plyr package."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 162,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for activity 1 goes here..\n",
+    "\n",
+    "require(plyr) # Always load plyr package first if you have to use both plyr and dplyr. Because\n",
+    "              # dplyr package will mask some of the functions in plyr.\n",
+    "require(dplyr)  #Use require as it will give an error message if the package doesn't exist\n",
+    "require(lubridate)\n",
+    "\n",
+    "forest_cover$Cover_Type <- mapvalues(forest_cover$Cover_Type, from = c(1,2,3,4,5,6,7), \n",
+    "to = c(\"1.SpruceFir\",\"2.LodgepolePine\",\"3.PonderosaPine\",\"4.Cottonwood-Willow\",\"5.Aspen\",\"6.Douglas-fir\",\"7.Krummholz\"))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "mapvalues() with map the values in from i'e 1,2,3... to corresponding values in to i'e 1.SpruceFir, 2.LodgepolePine,...\n",
+    "\n",
+    "**Reference: **[mapvalues()](https://www.rdocumentation.org/packages/plyr/versions/1.8.4/topics/mapvalues)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 163,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "# Run below commands for a quick brief info on the libraries on what they do.\n",
+    "\n",
+    "# help(lubridate)\n",
+    "# help(plyr)\n",
+    "# help(dplyr)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 2: ** Plot a bar graph for the observations of each Cover_Type. Use dplyr to first get the count of 7 cover types and normalize the count by dividing it by total rows in forest_cover dataset."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# # Code for activity 2 goes here...\n",
+    "\n",
+    "library(ggplot2)\n",
+    "\n",
+    "# # forest_cover data is supplied to group_by() function to group the data based on Cover_Type. \n",
+    "# # This 7 groups of data formed above is supplied as input to summarize() where we are getting the \n",
+    "# # count of observations stored in the variable count. cover_type_ratio is created to store the \n",
+    "# # ratio of cover type. \n",
+    "\n",
+    "coverType_count = forest_cover %>%  \n",
+    "  group_by(<what goes in here>) %>%    # data is grouped according to labels (1,2,3,4,5,6,7) of cover type\n",
+    "  dplyr::summarize(count = <what goes in here> %>%  # count the number of observations in each group\n",
+    "  mutate(cover_type_ratio=count/sum(count)) # divide the counts obtained in above step to get the ratio.\n",
+    "                                           \n",
+    "# # Display the contents of the variable coverType_count\n",
+    "coverType_count"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Code for activity 2 continues here.\n",
+    "\n",
+    "# plot the distribution of cover type using the dataframe \"coverType_count\" created above. \n",
+    "plot<-ggplot(coverType_count, aes(<what goes in here>)) +   \n",
+    "  geom_bar(stat=\"identity\") + # plot a bar graph \n",
+    "  scale_y_continuous() + \n",
+    "  geom_text(data=coverType_count, aes(label=count,y=<what goes in here>),size=4) + # Display the count for each category \n",
+    "                    # at y position \"count(2160)+100\". This will display the value right above the bars.\n",
+    "  geom_text(data=coverType_count, aes(label=<what goes in here>,y=count+200),size=4)+\n",
+    "                    # Display the count percentage rounded to one decimal place at y position \"count(2160)+200\". This  \n",
+    "                    # will display the ratios right above the counts printed in previous steps.          \n",
+    "\n",
+    "                    # You should convert the ratio 0.1428571 to 14.3% for printing in above step.\n",
+    "\n",
+    "  theme(axis.text.x=element_text(angle=30,hjust=1,size=8))+ # code to adjust the indices on x-axis \n",
+    "                                                            # tilted. Play with the code to see what each parameter is doing.\n",
+    "  ggtitle('Cover Type Distribution')\n",
+    "\n",
+    "plot"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The forest cover is equally distributed with 7 different types as evident from above plot. "
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 3: ** The names of some of the variables are too long. Modify the column names as listed."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 166,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "oldnames<-c(\"Elevation\",\"Aspect\",\"Slope\",\"Horizontal_Distance_To_Hydrology\",\"Vertical_Distance_To_Hydrology\",\n",
+    "                  \"Horizontal_Distance_To_Roadways\",\"Horizontal_Distance_To_Fire_Points\",\"Hillshade_9am\",\n",
+    "                  \"Hillshade_Noon\",\"Hillshade_3pm\")\n",
+    "\n",
+    "newnames<-c(\"Elevation\",\"Aspect\",\"Slope\",\"HD.Hydro\",\"VD.Hydro\",\"HD.Road\",\"HD.Fire\",\"HS.9am\",\"HS.noon\",\"HS.3pm\")\n",
+    "\n",
+    "library(data.table)\n",
+    "\n",
+    "# Your code for activity 3 goes here.\n",
+    "setnames()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 4: **Create box plots for each of the variables listed above in activity 3. \n",
+    "\n",
+    "\n",
+    "`Follow the partial code below to complete it`: \n",
+    "\n",
+    "The code may look little dense but its because of the for loop we are running. The loop will capture each plot in an array. Ignore the for loop for some time and look at the code inside. It's a regular simple box plot. \n",
+    "\n",
+    "Use aes_string(y=newnames[i],x=\"Cover_Type\") inside ggplot(). It means, x axis will be Cover_type and y-axis will be the variable in the list \"newnames\". The for loop will repeat 10 times for the 10 variables in the list to produce 10 box plots. \n",
+    "\n",
+    "$1^{st}$ box plot would be between Elevation and Cover_Type\n",
+    "\n",
+    "$2^{st}$ box plot would be between Aspect and Cover_Type and so on"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for activity 4 goes here....\n",
+    "\n",
+    "p=list()\n",
+    "for(i in 1:length(newnames)){\n",
+    "  p[[i]] <- ggplot(<what goes in here>, aes_string(<what goes in here>)) + \n",
+    "              <what goes in here> + \n",
+    "              theme(axis.text.x=element_blank(),axis.title.x=element_blank()) # This line will keep the\n",
+    "               # x-axis label and title of each plot empty.\n",
+    "  }\n",
+    "\n",
+    "# Arrange the plots in a grid using grid.arrange() in grid.Extra package. Arrange 2 plots in a row.\n",
+    "library(gridExtra)\n",
+    "grid.arrange(p[[1]],p[[2]],p[[3]],p[[4]],p[[5]],p[[6]],p[[7]],p[[8]],p[[9]],p[[10]],\n",
+    "    ncol=<what goes in here>) # ncol will arrange two plots in each row."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 5: ** Find correlation between the columns 2 to 10 in forest_cover. The first column is ID. So ignore it. The rest of the columns have binary values. Use ggcorr() function in GGally package. \n",
+    "\n",
+    "**Reference: **[ggcorr()](https://briatte.github.io/ggcorr/)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for activity 5 goes here....\n",
+    "\n",
+    "library(GGally)\n",
+    "corr_plot<-ggcorr(forest_cover[<select all rows for columns 2 through 10>], .....<use the 7 parameters listed below for the plot>) \n",
+    "                           # Run help(ggcorr) for documentation\n",
+    "    \n",
+    "# label indicates to add correlation coefficients to the plot.\n",
+    "\n",
+    "# label_size indicates size of the correlation coefficients\n",
+    "\n",
+    "# label_round : indicates how many decimals the correlation coefficiens should be rounded\n",
+    "\n",
+    "# label_alpha: indicates whether the correlation coefficients be made increasingly transparent as they \n",
+    "# come close to 0. \n",
+    "\n",
+    "# hjust: will adjust the position of labels Elevation , Aspect etc horizontally from the plot. \n",
+    "# Change the value to 0 and 4 to understand how it works.\n",
+    "\n",
+    "# size: indicates size of the labels Elevation, Aspect etc. Change the number to 10 to see how it works.\n",
+    "\n",
+    "# layout.exp: Its a multiplier to expand the horizontal axis to the left if variable names get clipped. \n",
+    "\n",
+    "\n",
+    "# Plot the correlation plot created above.\n",
+    "corr_plot"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 169,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "# Uncomment and run the cell to learn more about the ggcorr() function parameters.\n",
+    "# help(ggcorr)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 6: ** Identify the pairs of variables which have a correlation of greater than 0.5 and less than -0.5 using above correlation plot and draw scatter plots for each pair of variables. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for activity 6 goes here....\n",
+    "\n",
+    "# For example HS.noon is correlated with HS.3pm\n",
+    "corrFeature1<-c(<list the correlated features>) # So you will include HS.noon in this list\n",
+    "corrFeature2<-c(<list the corresponding features which are correlated>) # Corresponding feature HS.3pm is included in the list \n",
+    "                                                                        # in the same position as one to one mapping.\n",
+    "\n",
+    "# scatterTemp<-sample_n(forest_cover,10000)\n",
+    "\n",
+    "p=list()\n",
+    "for(i in 1:length(corrFeature1)){\n",
+    "  p[[i]] <- ggplot(<data>, <aesthetic>) +\n",
+    "              geom_point(alpha=1/10)\n",
+    "  }\n",
+    "\n",
+    "# Arrange the plots in a grid using grid.arrange() in grid.Extra package. Arrange 2 plots in a row.\n",
+    "library(gridExtra)\n",
+    "grid.arrange(<list all the plots>,\n",
+    "    ncol=2) # ncol=2 will arrange two plots in each row.\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "collapsed": true
+   },
+   "source": [
+    "The columns Wilderness_Area1, Wilderness_Area2, Wilderness_Area3, Wilderness_Area4 are mutually exclusive. That means we can fuse these columns into one column. \n",
+    "\n",
+    "Combine the 4 columns listed above into one single column called wildernessArea. Assign the labels Rawah, Neota, ComanchePeak, CachePoudre for each row of wildernessArea where the row belongs to one of the 4 categories."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 171,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "TRUE"
+      ],
+      "text/latex": [
+       "TRUE"
+      ],
+      "text/markdown": [
+       "TRUE"
+      ],
+      "text/plain": [
+       "[1] TRUE"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "# Recode the Lables for the \"wildernessArea\" to one column. \n",
+    "\n",
+    "# Existing column names. These 4 columns have to be fused into one column called wildernessArea\n",
+    "oldCols <- c(\"Wilderness_Area1\",\"Wilderness_Area2\",\"Wilderness_Area3\",\"Wilderness_Area4\")\n",
+    "\n",
+    "# New labels that are to be assigned to each row in wildernessArea corresponding to the category \n",
+    "# of wilderness_Area it belongs\n",
+    "newLabels <- c(\"Rawah\",\"Neota\",\"ComanchePeak\",\"CachePoudre\")\n",
+    "\n",
+    "# forest_cover is a dataframe. Convert it into a data.table to assign values using := operator.\n",
+    "forest_cover=data.table(forest_cover)\n",
+    "is.data.table(forest_cover) # make sure forest_cover is a data.table. \n",
+    "\n",
+    "for(i in 1:length(newLabels)) { # Loop for 4 times. length(newLabels) is 4. \n",
+    "   refColumn<-oldCols[i] # Take the name in vector oldCols according to the loop count. oldCols[1] \n",
+    "                         # will give Wilderness_Area1.\n",
+    "   refValue<-newLabels[i]  # Take the name in vector newLabels according to the loop count. \n",
+    "                         # newLabels[1] will give Rawah\n",
+    "    \n",
+    "   forest_cover<-forest_cover[get(refColumn)==1,wildernessArea:=refValue]\n",
+    "}\n",
+    "# get(refColumn) will return the column. For example get(refColumn) returned Wilderness_Area1.\n",
+    "    # Then for every value 1 in Wilderness_Area1, wildernessArea will be assigned the value Rawah.\n",
+    "    \n",
+    "    # Or if get(refColumn) returned Wilderness_Area2.\n",
+    "    # Then for every value 1 in Wilderness_Area2, wildernessArea will be assigned the value Neota. \n",
+    "    # This will continue for remaining two columns. \n",
+    "    # Finally one fused column wildernessArea with recoded values Rawah, Neota etc is formed."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 172,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "# Run the cell to understand how assignment operator(:=) works.\n",
+    "help(\":=\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Repeat the same thing for columns Soil_Type1, Soi_Type2 and so on until Soil_Type40. Even these columns are mutually exclusive. That means we can fuse these columns into one column without losing any data. \n",
+    "\n",
+    "Combine the into one single column called soilType. Assign the new labels for each row of soilType where the row belongs to one of the 40 categories."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 173,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "#Recode the Lables for the \"Soil_Type\" to one column called soilType. \n",
+    "newLabels<-c('Cathedral','Vanet','Haploborolis','Ratake','Vanet1','Vanet2','Gothic','Supervisor',\n",
+    "             'Troutville','Bullwark1','Bullwark2','Legault','Catamount1','Pachic','unspecified',\n",
+    "             'Cryaquolis','Gateview','Rogert','Typic1','Typic2','Typic3','Leighcan1','Leighcan2',\n",
+    "             'Leighcan3','Leighcan4','Granile','Leighcan5','Leighcan6','Como1','Como2','Leighcan7',\n",
+    "             'Catamount2','Leighcan8','Cryorthents','Cryumbrepts','Bross','Rock','Leighcan9','Moran1',\n",
+    "             'Moran2')\n",
+    "\n",
+    "oldCols <- c(\"Soil_Type1\",\"Soil_Type2\",\"Soil_Type3\",\"Soil_Type4\",\"Soil_Type5\",\"Soil_Type6\",\"Soil_Type7\",\"Soil_Type8\",\n",
+    "\"Soil_Type9\",\"Soil_Type10\",\"Soil_Type11\",\"Soil_Type12\",\"Soil_Type13\",\"Soil_Type14\",\"Soil_Type15\",\"Soil_Type16\",\n",
+    "\"Soil_Type17\",\"Soil_Type18\",\"Soil_Type19\",\"Soil_Type20\",\"Soil_Type21\",\"Soil_Type22\",\"Soil_Type23\",\"Soil_Type24\",\n",
+    "\"Soil_Type25\",\"Soil_Type26\",\"Soil_Type27\",\"Soil_Type28\",\"Soil_Type29\",\"Soil_Type30\",\"Soil_Type31\",\"Soil_Type32\",\n",
+    "\"Soil_Type33\",\"Soil_Type34\",\"Soil_Type35\",\"Soil_Type36\",\"Soil_Type37\",\"Soil_Type38\",\"Soil_Type39\",\"Soil_Type40\")\n",
+    "\n",
+    "# The following code is same as previous cell.\n",
+    "for(i in 1:length(newLabels)) {\n",
+    "   refColumn<-oldCols[i]\n",
+    "   refValue<-newLabels[i]\n",
+    "   forest_cover<-forest_cover[get(refColumn)==1,soilType:=refValue]\n",
+    "}\n",
+    "\n",
+    "\n",
+    "# Remove the binary columns Wilderness_Area1, Wilderness_Area2, Wilderness_Area3, Wilderness_Area4 and \n",
+    "# other 40 columns of soil type. These binary column span from 12 through 55 columns. \n",
+    "# Assign the these columns to NULL to delete them.\n",
+    "\n",
+    "forest_cover <- forest_cover[ , colnames(forest_cover[,12:55,with=FALSE]):=NULL]\n",
+    "\n",
+    "# In following line of code, colnames(forest_cover[,12:55,with=FALSE]):=NULL all columns 12 through 55 are\n",
+    "# assigned to NULL to delete them.\n",
+    "\n",
+    "# with = FALSE, means the columns 12:55 will be a character vector of column names or a numeric vector \n",
+    "# of column positions to select, and the value returned is always a data.table. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 174,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "NULL"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/html": [
+       "<ol class=list-inline>\n",
+       "\t<li>'Id'</li>\n",
+       "\t<li>'Elevation'</li>\n",
+       "\t<li>'Aspect'</li>\n",
+       "\t<li>'Slope'</li>\n",
+       "\t<li>'HD.Hydro'</li>\n",
+       "</ol>\n"
+      ],
+      "text/latex": [
+       "\\begin{enumerate*}\n",
+       "\\item 'Id'\n",
+       "\\item 'Elevation'\n",
+       "\\item 'Aspect'\n",
+       "\\item 'Slope'\n",
+       "\\item 'HD.Hydro'\n",
+       "\\end{enumerate*}\n"
+      ],
+      "text/markdown": [
+       "1. 'Id'\n",
+       "2. 'Elevation'\n",
+       "3. 'Aspect'\n",
+       "4. 'Slope'\n",
+       "5. 'HD.Hydro'\n",
+       "\n",
+       "\n"
+      ],
+      "text/plain": [
+       "[1] \"Id\"        \"Elevation\" \"Aspect\"    \"Slope\"     \"HD.Hydro\" "
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "# Understand the difference between with=TRUE and with=FALSE by looking at the output of the cell. Run help(data.table) to know \n",
+    "# more about with operator and data.table\n",
+    "temp <- forest_cover[ , colnames(forest_cover[,1:5,with=TRUE])]\n",
+    "dim(temp)\n",
+    "\n",
+    "temp <- forest_cover[ , colnames(forest_cover[,1:5,with=FALSE])]\n",
+    "(temp)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 175,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "# Run the cell to learn more about how data.table is different from dataframe.\n",
+    "help(data.table)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 176,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Classes ‘data.table’ and 'data.frame':\t15120 obs. of  14 variables:\n",
+      " $ Id            : int  1 2 3 4 5 6 7 8 9 10 ...\n",
+      " $ Elevation     : int  2596 2590 2804 2785 2595 2579 2606 2605 2617 2612 ...\n",
+      " $ Aspect        : int  51 56 139 155 45 132 45 49 45 59 ...\n",
+      " $ Slope         : int  3 2 9 18 2 6 7 4 9 10 ...\n",
+      " $ HD.Hydro      : int  258 212 268 242 153 300 270 234 240 247 ...\n",
+      " $ VD.Hydro      : int  0 -6 65 118 -1 -15 5 7 56 11 ...\n",
+      " $ HD.Road       : int  510 390 3180 3090 391 67 633 573 666 636 ...\n",
+      " $ HS.9am        : int  221 220 234 238 220 230 222 222 223 228 ...\n",
+      " $ HS.noon       : int  232 235 238 238 234 237 225 230 221 219 ...\n",
+      " $ HS.3pm        : int  148 151 135 122 150 140 138 144 133 124 ...\n",
+      " $ HD.Fire       : int  6279 6225 6121 6211 6172 6031 6256 6228 6244 6230 ...\n",
+      " $ Cover_Type    : chr  \"5.Aspen\" \"5.Aspen\" \"2.LodgepolePine\" \"2.LodgepolePine\" ...\n",
+      " $ wildernessArea: chr  \"Rawah\" \"Rawah\" \"Rawah\" \"Rawah\" ...\n",
+      " $ soilType      : chr  \"Como1\" \"Como1\" \"Legault\" \"Como2\" ...\n",
+      " - attr(*, \".internal.selfref\")=<externalptr> \n"
+     ]
+    }
+   ],
+   "source": [
+    "# Run str() to verify Wilderness_Area columns and soil_Type columns are merged and all those binary columns are deleted.\n",
+    "str(forest_cover)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The forest_cover is ready for fitting a model on it. The binary columns are removed and converted into \n",
+    "factor types. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 177,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Use setcolorder() function to reorder the columns in a dataset.\n",
+    "colOrder<-c(\"Id\",\"Elevation\",\"Aspect\",\"Slope\",\"HD.Hydro\",\"VD.Hydro\",\"HD.Road\",\"HD.Fire\",\"HS.9am\",\"HS.noon\",\"HS.3pm\",\"Cover_Type\",\"wildernessArea\",\"soilType\")\n",
+    "\n",
+    "# Rearrange the columns of forest_cover according to above order.\n",
+    "setcolorder(forest_cover, colOrder)\n",
+    "\n",
+    "# Shorten the names of columns for readability.\n",
+    "setnames(forest_cover,colOrder)\n",
+    "\n",
+    "# Remove the Id column from forest_cover.\n",
+    "forest_cover$Id=NULL"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Reference: **\n",
+    "\n",
+    "* [setcolorder()](https://www.rdocumentation.org/packages/data.table/versions/1.9.6/topics/setcolorder) : orders the columns of data.table, by reference, to the new order provided.\n",
+    "\n",
+    "* [setnames](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/setNames.html): This is a convenience function that sets the names on an object and returns the object."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 7: ** Calculate feature importance of the variables in forest_cover using chi.squared() and random.forest.importance() functions. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 178,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for activity 7 goes here...\n",
+    "\n",
+    "require('FSelector')\n",
+    "\n",
+    "#Calculate chi-squared values.\n",
+    "chiSquare <- chi.squared(<what goes in here>) # chi.squared value is calculated for every variable against Cover_Type\n",
+    "                                                     # The value is assigned to variable called chiSquare.\n",
+    "chiSquare$chiSquare_features <- row.names(chiSquare) # create a new variable chiSquare$chiSquare_features in chiSquare dataframe \n",
+    "                                                     # with row nmaes of chiSquare. Row names contain columns of forest_cover.\n",
+    "colnames(chiSquare)[1] <- <what goes in here>    # Name the column with chi.squared values as 'chi.square'\n",
+    "\n",
+    "\n",
+    "chiSquare$chi.square <- round(<what goes in here>) # Round the values in chi.square to 3 decimal places\n",
+    "chiSquare <- chiSquare[with(chiSquare, <use order function on chi.square to order the elements in chiSquare>), ] \n",
+    "                            # Sort the rows in chiSquare dataframe in decreasing order of chi.square values"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 179,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "# Code for activity 7 continues here...\n",
+    "\n",
+    "require('caret')\n",
+    "\n",
+    "# Calculate feature importance(weights of features) of variables using random.forest.importance()\n",
+    "RF_Importance<- random.forest.importance(<what goes in here>,<what goes in here>, importance.type = 1) \n",
+    "                # importance.type=1: mean decrease in accuracy, \n",
+    "                #                =2: mean decrease in node impurity\n",
+    "                                                                                 \n",
+    "RF_Importance$RF_features <- row.names(RF_Importance)  # create a new variable called RF_features with row names names of \n",
+    "                                                        # RF_Importance as its values. \n",
+    "colnames(RF_Importance)[1] <- <what goes in here>   # (RF_Importance)[1] is the column with feature weights. Name this column\n",
+    "                                                    # as 'Var_Importance'\n",
+    "RF_Importance$Var_Importance <- round(RF_Importance$Var_Importance/100,3)  # Round the importance values to 3 decimal places\n",
+    "RF_Importance <- RF_Importance[<what goes in here>,] \n",
+    "                                        # Sort the rows in RF_Importance in decreasing order of Var_Importance values\n",
+    "\n",
+    "\n",
+    "combined_features<-bind_cols(chiSquare,<what goes in here>) \n",
+    "                                                    # Combine the two dataframes chiSquare and RF_Importance using bind_cols() "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 180,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "help(random.forest.importance)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 181,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "help(bind_cols)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Feature Importance\n",
+    "\n",
+    "The feature importance of the 13 columns, with respect to Cover_Type variable is calculated above. The table is presented below with importance of each variable calculated using chi square value and random forest importance function.\n",
+    "\n",
+    "Elevation is the top feature using both methods. Although there are differences in the importance assigned to variables random forest might have done better job at assesing variable importance. It's rigorous."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "colOrder<-c(\"chiSquare_features\",\"chi.square\",\"RF_features\",\"Var_Importance\") \n",
+    "table=setcolorder(combined_features, colOrder) # reorder the columns of combined_features according to the names in colOrder\n",
+    "table"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Reference: **[FSelector](https://cran.r-project.org/web/packages/FSelector/FSelector.pdf)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 8: ** Split the data into training and testing sets. Put 70% of data in \"Forestcover_train\" dataframe and rest in \"Forestcover_test\" dataframe. Use the seed as 100 to reproduce test results for evaluation. \n",
+    "\n",
+    "Testing set will be used to evaluate the predictive capability of the model."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 183,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for activity 8 goes here. \n",
+    "\n",
+    "# Be care ful in splitting the data. Set the seed as 100 for consistency in the results across everyone's notebooks. \n",
+    "# use sample.split() function for splitting the data into 70% in training and rest in testing sets.\n",
+    "# Split the data on forest_cover$Cover_Type not on forest_cover.\n",
+    "\n",
+    "library(caTools)\n",
+    "set.seed(100) # set.seed() will help us to reproduce the results.\n",
+    "split = sample.split()\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Using this importance information of the variables, choose to include between variables while fiting the model. Fit a classification model using LDA or SVC. Start with LDA. Cover_Type is character type. Convert the variable to factor with levels (1,2,3,4,5,6,7). "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 184,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "'character'"
+      ],
+      "text/latex": [
+       "'character'"
+      ],
+      "text/markdown": [
+       "'character'"
+      ],
+      "text/plain": [
+       "[1] \"character\""
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "class(Forestcover_train$Cover_Type)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Convert the Cover_Type from character to factor type in both training and testing sets. Substitue the labels from names of Cover_Type to numbers (1,2,3,4,5,6,7) for fitting the model. \n",
+    "\n",
+    "Do the same thing for soilType. Convert the variable from character to factor type. Substitue soil type names with intergers 1:40."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 203,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "Forestcover_train$Cover_Type <- factor(Forestcover_train$Cover_Type,\n",
+    "levels = c(\"1.SpruceFir\",\"2.LodgepolePine\",\"3.PonderosaPine\",\"4.Cottonwood-Willow\",\"5.Aspen\",\"6.Douglas-fir\",\"7.Krummholz\"),\n",
+    "labels = c(1,2,3,4,5,6,7))\n",
+    "\n",
+    "Forestcover_test$Cover_Type <- factor(Forestcover_test$Cover_Type,\n",
+    "levels = c(\"1.SpruceFir\",\"2.LodgepolePine\",\"3.PonderosaPine\",\"4.Cottonwood-Willow\",\"5.Aspen\",\"6.Douglas-fir\",\"7.Krummholz\"),\n",
+    "labels = c(1,2,3,4,5,6,7))\n",
+    "\n",
+    "\n",
+    "Forestcover_train$soilType <- factor(Forestcover_train$soilType,\n",
+    "levels = c('Cathedral','Vanet','Haploborolis','Ratake','Vanet1','Vanet2','Gothic','Supervisor',\n",
+    "             'Troutville','Bullwark1','Bullwark2','Legault','Catamount1','Pachic','unspecified',\n",
+    "             'Cryaquolis','Gateview','Rogert','Typic1','Typic2','Typic3','Leighcan1','Leighcan2',\n",
+    "             'Leighcan3','Leighcan4','Granile','Leighcan5','Leighcan6','Como1','Como2','Leighcan7',\n",
+    "             'Catamount2','Leighcan8','Cryorthents','Cryumbrepts','Bross','Rock','Leighcan9','Moran1',\n",
+    "             'Moran2'),\n",
+    "labels = c(1:40))\n",
+    "\n",
+    "Forestcover_test$soilType <- factor(Forestcover_test$soilType,\n",
+    "levels = c('Cathedral','Vanet','Haploborolis','Ratake','Vanet1','Vanet2','Gothic','Supervisor',\n",
+    "             'Troutville','Bullwark1','Bullwark2','Legault','Catamount1','Pachic','unspecified',\n",
+    "             'Cryaquolis','Gateview','Rogert','Typic1','Typic2','Typic3','Leighcan1','Leighcan2',\n",
+    "             'Leighcan3','Leighcan4','Granile','Leighcan5','Leighcan6','Como1','Como2','Leighcan7',\n",
+    "             'Catamount2','Leighcan8','Cryorthents','Cryumbrepts','Bross','Rock','Leighcan9','Moran1',\n",
+    "             'Moran2'),\n",
+    "labels = c(1:40))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 8.a: ** Convert the variable wildernessArea into a factor with labels 1,2,3,4. Perform anova between variables \n",
+    "wildernessArea and first 5 important features according to random forest importance."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for activity 8.a goes here.\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 8.b: ** Perform manova first 5 important features according to random forest importance against wildernessArea."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for activity 8.b goes here.\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 9: ** Fit a LDA model on Forestcover_train to predict Cover_Type using all independent variables except soilType. Name this model as Forestcover_lda."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for activity 9 goes here....\n",
+    "\n",
+    "library(MASS)\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Asses the model accuracy\n",
+    "\n",
+    "**Activity 10: ** Predict the forest cover type on Forestcover_test using the model Forestcover_lda built above. Build a confusion matrix to asses the performance of the model on test set and find the accuracy of predictions. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for Activity 10 goes here.\n",
+    "\n",
+    "Forestcover_pred=predict(<what goes in here>,<what goes in here>)\n",
+    "\n",
+    "# Use a 2-way table or confusionMatrix function to generate confusion matrix \n",
+    "\n",
+    "# Find the accuracy of the model on test set."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "collapsed": true
+   },
+   "source": [
+    "**Activity 11: ** Fit a LDA model on Forestcover_train to predict Cover_Type using Elevation, HD.Hydro, HD.Road and HD.Fire. Name this model as Forestcover_lda1."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for Activity 11 goes here.\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 12: ** Predict the forest cover type on Forestcover_test using the model Forestcover_lda1. Build a confusion matrix to asses the performance of the model on test set and find the accuracy of predictions. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for Activity 12 goes here.\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### SVM"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 13: ** Fit a SVM model on Forestcover_train to predict Cover_Type using all independent variables. Use different non linear kernels like polynomial, radial, sigmoid, etc. to find the best fit. Name this model as forestcover_svmfit. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "Your code for Activity 13 goes here.\n",
+    "\n",
+    "library(\"e1071\")\n",
+    "forestcover_svmfit <- svm()\n",
+    "forestcover_svmfit"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 14: ** Predict the forest cover type on Forestcover_test using the model Forestcover_svmfit. Build a confusion matrix to asses the performance of the model on test set and find the accuracy of predictions. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for Activity 14 goes here.\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 15: ** Fit a SVM model on Forestcover_train to predict Cover_Type using Elevation, HD.Hydro, HD.Road and HD.Fire and soilType. Name this model as Forestcover_svmfit1. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for Activity 15 goes here.\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Activity 16: ** Predict the forest cover type on Forestcover_test using the model Forestcover_svmfit1. Build a confusion matrix to asses the performance of the model on test set and find the accuracy of predictions. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "# Your code for Activity 16 goes here.\n",
+    "\n"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "R",
+   "language": "R",
+   "name": "ir"
+  },
+  "language_info": {
+   "codemirror_mode": "r",
+   "file_extension": ".r",
+   "mimetype": "text/x-r-source",
+   "name": "R",
+   "pygments_lexer": "r",
+   "version": "3.3.1"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 0
+}
